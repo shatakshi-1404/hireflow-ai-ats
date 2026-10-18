@@ -22,3 +22,4 @@ backend/uploads/
 Thumbs.db
 .vscode/
 .idea/
+backend/.env
