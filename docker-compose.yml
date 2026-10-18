@@ -1,0 +1,62 @@
+# One command runs everything:  docker compose up --build
+#   App:       http://localhost:5173
+#   API docs:  http://localhost:8000/docs
+# Demo logins (password demo-password-2026): demo-admin@example.com, demo-recruiter@example.com, demo-viewer@example.com
+# Optional AI settings go in a ".env" file next to this one (see .env.example). Without them the app runs in deterministic mode.
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: hireflow-db
+    environment:
+      POSTGRES_USER: hireflow
+      POSTGRES_PASSWORD: hireflow_dev_password
+      POSTGRES_DB: hireflow
+    ports:
+      - "5433:5432"
+    volumes:
+      - hireflow_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hireflow -d hireflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    container_name: hireflow-backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ENVIRONMENT: development
+      DATABASE_URL: postgresql+psycopg://hireflow:hireflow_dev_password@db:5432/hireflow
+      SECRET_KEY: ${SECRET_KEY:-local-docker-dev-secret-change-me-0123456789abcdef}
+      CORS_ORIGINS: '["http://localhost:5173"]'
+      COOKIE_SECURE: "false"
+      TRUSTED_PROXY_COUNT: "1"
+      AI_PROVIDER: ${AI_PROVIDER:-none}
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_MODEL: ${AI_MODEL:-}
+      AI_BASE_URL: ${AI_BASE_URL:-}
+      UPLOAD_DIR: /app/uploads
+    ports:
+      - "8000:8000"
+    volumes:
+      - hireflow_uploads:/app/uploads
+    # Migrate, load demo data on first run only (it refuses to overwrite, hence "|| true"), then serve.
+    command: >
+      sh -c "alembic upgrade head
+      && (python -m app.seed || true)
+      && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+
+  frontend:
+    build: ./frontend
+    container_name: hireflow-frontend
+    depends_on:
+      - backend
+    ports:
+      - "5173:80"
+
+volumes:
+  hireflow_pgdata:
+  hireflow_uploads:
