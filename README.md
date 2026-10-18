@@ -6,12 +6,12 @@ HireFlow AI is a mini Applicant Tracking System: recruiters manage candidates, j
 
 | | |
 |---|---|
-| Live demo | <https://your-app.vercel.app> |
-| API docs | <https://your-api.onrender.com/docs> |
-| Demo video | <unlisted video link> |
-| Repository | <https://github.com/you/hireflow-ai-ats> |
+| Live demo | <https://hireflow-ai-ats-7hmi.vercel.app> |
+| API docs | <https://hireflow-ai-ats-2.onrender.com/docs> |
+| Demo video | `<add your unlisted video link>` |
+| Repository | `<add your GitHub repo link>` |
 
-> **Demo notes.** The API runs on a free tier and sleeps when idle, so the first request after a quiet period can take about a minute. Demo accounts are shared and protected from password changes: `demo-viewer@example.com` (read-only), `demo-recruiter@example.com` and `demo-admin@example.com`, all with the password `<SEED_PASSWORD>`. You can also register your own isolated workspace. All data is fictional. Please don't upload real resumes.
+> **Demo notes.** The API runs on a free tier and sleeps when idle, so the first request after a quiet period can take about a minute. Sign in with the shared demo recruiter account `demo-recruiter@example.com` / `demo-password-2026` (also `demo-admin@example.com` and the read-only `demo-viewer@example.com`, same password), or register your own isolated workspace. All data is fictional. Please don't upload real resumes.
 
 ![Dashboard](docs/screenshots/dashboard.png)
 
@@ -28,13 +28,47 @@ HireFlow AI is a mini Applicant Tracking System: recruiters manage candidates, j
 
 ## Screenshots
 
-| Pipeline | Candidate profile | Match panel |
-|---|---|---|
-| ![Pipeline](docs/screenshots/pipeline.png) | ![Profile](docs/screenshots/candidate.png) | ![Match](docs/screenshots/match.png) |
+**Sign in**
 
-| Resume review | Analytics | Interviews |
-|---|---|---|
-| ![Review](docs/screenshots/resume-review.png) | ![Analytics](docs/screenshots/analytics.png) | ![Interviews](docs/screenshots/interviews.png) |
+![Sign in](docs/screenshots/login.png)
+
+**Dashboard.** KPI cards, applications over time and the hiring funnel, with a date range selector.
+
+![Dashboard activity](docs/screenshots/dashboard-activity.png)
+
+**Candidates.** Search, filter by stage, job, skills and experience, sort, paginate, import a CSV, or add a candidate.
+
+![Candidates](docs/screenshots/candidates.png)
+
+![Add candidate](docs/screenshots/add-candidate.png)
+
+**Pipeline.** Drag-and-drop board. Every move is validated and recorded by the server.
+
+![Pipeline](docs/screenshots/pipeline.png)
+
+**Jobs.**
+
+![Jobs](docs/screenshots/jobs.png)
+
+**Interviews.**
+
+![Interviews](docs/screenshots/interviews.png)
+
+![Schedule interview](docs/screenshots/schedule-interview.png)
+
+**Analytics.** Conversion funnel built from stage history, with the metric definitions shown in the UI.
+
+![Analytics](docs/screenshots/analytics.png)
+
+![Conversion funnel](docs/screenshots/analytics-funnel.png)
+
+**AI Assistant.** Resume analysis, explainable matching and interview questions. The page states which provider is active.
+
+![AI Assistant](docs/screenshots/ai-assistant.png)
+
+**Settings.** Profile, password change (which signs out other sessions) and, for admins, team management.
+
+![Settings](docs/screenshots/settings.png)
 
 ## Architecture
 
@@ -43,7 +77,7 @@ flowchart LR
   B[Browser] -->|HTTPS| V[Vercel: static React app]
   V -->|"/api/* rewrite (same origin)"| R[Render: FastAPI container]
   R --> N[(Neon PostgreSQL)]
-  R --> S[(Cloudflare R2: private resume bucket)]
+  R --> S[(Resume storage: local disk or private S3-compatible bucket)]
   R -.->|optional, server-side only| L[LLM provider]
 ```
 
@@ -111,16 +145,28 @@ Weights and saturation are configurable by environment variables. Components tha
 - Keyword extraction has false positives and negatives. Ambiguous names (go, r, c, express) are only detected in resumes through explicit aliases.
 - The text-similarity component sees whole-resume text, so personal details inside a resume can slightly influence it even though no personal fields are used as inputs.
 - No OCR, no bulk analysis, and no outreach email assistant.
-- Live provider integrations (Anthropic and OpenAI-compatible) are implemented against the providers' HTTP APIs and covered by tests with a fake provider. <State here whether you ran them against a real key.>
+- Live provider integrations (Anthropic and OpenAI-compatible) are implemented against the providers' HTTP APIs and covered by tests with a fake provider. The deployed demo is configured with an OpenAI-compatible provider (Groq, `openai/gpt-oss-20b`), which the AI Assistant page displays. Treat model output as a draft to review.
 
-## Local setup (Windows, PowerShell)
+## Run locally
 
-Prerequisites: Python 3.11+, Node.js 20+, Docker Desktop, Git.
+### Option A: Docker (one command)
+
+Needs Docker Desktop running.
+
+```powershell
+docker compose up --build
+```
+
+Open <http://localhost:5173> (API docs at <http://localhost:8000/docs>). The first start builds the images, runs the Alembic migration and loads the fictional demo data. Stop with Ctrl+C, and `docker compose down -v` also wipes the database and uploads. To enable a real LLM, copy `.env.example` to `.env` next to `docker-compose.yml` and fill in the `AI_*` values.
+
+### Option B: native (Windows, PowerShell)
+
+Prerequisites: Python 3.12+, Node.js 20+, Docker Desktop (for Postgres) or a local PostgreSQL on port 5433, Git.
 
 ```powershell
 # 1. Database
 docker compose up -d db
-docker exec -it hireflow-db psql -U hireflow -d postgres -c "CREATE DATABASE hireflow_test;"
+docker exec -it hireflow-db psql -U hireflow -d postgres -c "CREATE DATABASE hireflow_test OWNER hireflow;"
 
 # 2. Backend (from backend\)
 python -m venv .venv
@@ -136,9 +182,7 @@ npm install
 npm run dev                        # http://localhost:5173, /api is proxied to :8000
 ```
 
-Demo logins after seeding: `demo-admin@example.com`, `demo-recruiter@example.com`, `demo-viewer@example.com`, password `demo-password-2026` (or your `SEED_PASSWORD`). The login page in development mode has a button that fills the admin credentials.
-
-Swagger UI: <http://localhost:8000/docs>.
+Demo logins after seeding: `demo-admin@example.com`, `demo-recruiter@example.com`, `demo-viewer@example.com`, password `demo-password-2026` (or your `SEED_PASSWORD`). See `SETUP.md` for the same steps.
 
 ## Environment variables (backend)
 
@@ -170,7 +214,7 @@ Swagger UI: <http://localhost:8000/docs>.
 
 Backend tests run against an isolated `hireflow_test` database and refuse to run against any database whose name doesn't end in `_test`. They cover authentication, roles, workspace isolation, validation, duplicate applications, stage transitions and history, jobs, interviews, analytics, CSV import, resume parsing failures, matching, AI provider failures and fallbacks, and security middleware. Frontend tests cover forms, filters, the optimistic stage change and its revert, and the AI review flow.
 
-Latest local run: `<paste the real pytest and vitest summary lines>`.
+Last run (Linux, PostgreSQL 16): 127 backend tests and 40 frontend tests passing, plus a clean TypeScript build and `ruff` check. Re-run `scripts\check.ps1` to reproduce.
 
 Real pointer and keyboard dragging, accessibility and the live deployment are verified manually, because jsdom can't simulate them.
 
@@ -180,7 +224,7 @@ Interactive documentation: `/docs`. Everything is under `/api/v1`. Authenticatio
 
 ## Deployment
 
-Vercel serves `frontend/` and rewrites `/api/*` to the API (see `frontend/vercel.json`), so the browser sees a single origin. Render runs `backend/Dockerfile` (migrations run on start, health check `/api/v1/health`, see `render.yaml`). Neon provides PostgreSQL (use the direct, non-pooled connection string). Resumes live in a private Cloudflare R2 bucket and are served only through authenticated API routes. Set `COOKIE_SECURE=true` and `CORS_ORIGINS` to the exact Vercel URL. Seed the production database from a local machine with `python -m app.seed --allow-production`.
+Vercel serves `frontend/` and rewrites `/api/*` to the API (see `frontend/vercel.json`), so the browser sees a single origin and the session cookie is first-party. Render runs `backend/Dockerfile` (build context `backend`, migrations run on start, health check `/api/v1/health`, see `render.yaml`). Neon provides PostgreSQL (use the direct, non-pooled connection string). Resumes are stored through a storage interface: the local-disk backend (default, no extra service, but Render's free disk is ephemeral so uploaded resumes are lost on restart) or any private S3-compatible bucket such as Cloudflare R2 (`STORAGE_BACKEND=s3`). Resumes are only served through authenticated API routes. In production set `ENVIRONMENT=production`, `COOKIE_SECURE=true`, `TRUSTED_PROXY_COUNT=1` and `CORS_ORIGINS` to the exact Vercel URL. Seed the production database from a local machine with `python -m app.seed --allow-production`.
 
 `scripts/smoke.ps1 -BaseUrl <vercel url> -Password <seed password>` checks the live deployment end to end.
 
@@ -202,7 +246,7 @@ Vercel serves `frontend/` and rewrites `/api/*` to the API (see `frontend/vercel
 - No OCR. Skill extraction is keyword-based.
 - The pipeline board loads at most 200 applications per view. Filter by job for more.
 - No interviewer double-booking check, calendar view, email sending or outreach assistant.
-- Docker Compose runs only the local database. The API and web app run natively in development.
+- Free-tier hosting with local-disk resume storage loses uploaded resumes on restart. Use an S3-compatible bucket for persistence.
 - `ruff format` and a backend type checker are not enforced.
 - Cached match scores can be stale after profile or job edits other than a resume confirmation.
 
