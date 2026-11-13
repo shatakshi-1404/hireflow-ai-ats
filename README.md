@@ -8,8 +8,7 @@ HireFlow AI is a mini Applicant Tracking System: recruiters manage candidates, j
 |---|---|
 | Live demo | <https://hireflow-ai-ats-7hmi.vercel.app> |
 | API docs | <https://hireflow-ai-ats-2.onrender.com/docs> |
-| Demo video | `<add your unlisted video link>` |
-| Repository | `<add your GitHub repo link>` |
+| Repository | <https://github.com/shatakshi-1404/hireflow-ai-ats> |
 
 > **Demo notes.** The API runs on a free tier and sleeps when idle, so the first request after a quiet period can take about a minute. Sign in with the shared demo recruiter account `demo-recruiter@example.com` / `demo-password-2026` (also `demo-admin@example.com` and the read-only `demo-viewer@example.com`, same password), or register your own isolated workspace. All data is fictional. Please don't upload real resumes.
 
